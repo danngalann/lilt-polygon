@@ -26,7 +26,7 @@ from transformers.activations import ACT2FN
 from transformers.modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, SequenceClassifierOutput, \
     TokenClassifierOutput, QuestionAnsweringModelOutput
 from transformers.pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer, apply_chunking_to_forward
-from transformers.utils import add_start_docstrings_to_model_forward, replace_return_docstrings
+from transformers.utils import add_start_docstrings_to_model_forward, replace_return_docstrings, logging
 
 logger = logging.get_logger(__name__)
 
