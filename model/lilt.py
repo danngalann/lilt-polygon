@@ -130,12 +130,12 @@ class LiltTextEmbeddings(nn.Module):
 class LiltLayoutEmbeddings(nn.Module):
     def __init__(self, config):
         super().__init__()
-        # we divide the hidden_size by 6 here as there are 6 different layout embeddings,
-        # namely left_position, upper_position, right_position, lower_position, height, width
-        self.x_position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 6)
-        self.y_position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 6)
-        self.h_position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 6)
-        self.w_position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 6)
+        # divide by 12 because there are 12 different layout embeddings
+        # for four-point polygons (8 coordinates: x1,y1,x2,y2,x3,y3,x4,y4)
+        # and additional 4 for height and width (not strictly needed, but can be used)
+        self.position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 12)
+        self.h_position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 12)
+        self.w_position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 12)
 
         self.padding_idx = config.pad_token_id
         self.box_position_embeddings = nn.Embedding(
@@ -143,39 +143,38 @@ class LiltLayoutEmbeddings(nn.Module):
             config.hidden_size // config.channel_shrink_ratio,
             padding_idx=self.padding_idx,
         )
-        self.box_linear_embeddings = nn.Linear(
+        self.polygon_linear_embeddings = nn.Linear(
             in_features=config.hidden_size, out_features=config.hidden_size // config.channel_shrink_ratio
         )
         self.LayerNorm = nn.LayerNorm(config.hidden_size // config.channel_shrink_ratio, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, bbox=None, position_ids=None):
+    def forward(self, polygon=None, position_ids=None):
         try:
-            left_position_embeddings = self.x_position_embeddings(bbox[:, :, 0])
-            upper_position_embeddings = self.y_position_embeddings(bbox[:, :, 1])
-            right_position_embeddings = self.x_position_embeddings(bbox[:, :, 2])
-            lower_position_embeddings = self.y_position_embeddings(bbox[:, :, 3])
+            # Assuming polygon is of shape (batch_size, sequence_length, 8)
+            position_embeddings_list = [self.position_embeddings(polygon[:, :, i]) for i in range(8)]
         except IndexError as e:
-            raise IndexError("The `bbox` coordinate values should be within 0-1000 range.") from e
+            raise IndexError("The `polygon` coordinate values should be within 0-1000 range.") from e
 
-        h_position_embeddings = self.h_position_embeddings(bbox[:, :, 3] - bbox[:, :, 1])
-        w_position_embeddings = self.w_position_embeddings(bbox[:, :, 2] - bbox[:, :, 0])
+        spatial_position_embeddings = torch.cat(position_embeddings_list, dim=-1)
+
+        # You can still add height and width embeddings if you want
+        # They are not strictly needed for polygon prediction
+        h_position_embeddings = self.h_position_embeddings(polygon[:, :, 7] - polygon[:, :, 1])
+        w_position_embeddings = self.w_position_embeddings(polygon[:, :, 2] - polygon[:, :, 0])
 
         spatial_position_embeddings = torch.cat(
             [
-                left_position_embeddings,
-                upper_position_embeddings,
-                right_position_embeddings,
-                lower_position_embeddings,
+                spatial_position_embeddings,
                 h_position_embeddings,
                 w_position_embeddings,
             ],
             dim=-1,
         )
-        spatial_position_embeddings = self.box_linear_embeddings(spatial_position_embeddings)
-        box_position_embeddings = self.box_position_embeddings(position_ids)
+        spatial_position_embeddings = self.polygon_linear_embeddings(spatial_position_embeddings)
+        polygon_position_embeddings = self.box_position_embeddings(position_ids)
 
-        spatial_position_embeddings = spatial_position_embeddings + box_position_embeddings
+        spatial_position_embeddings = spatial_position_embeddings + polygon_position_embeddings
 
         spatial_position_embeddings = self.LayerNorm(spatial_position_embeddings)
         spatial_position_embeddings = self.dropout(spatial_position_embeddings)
@@ -713,7 +712,7 @@ class LiltModel(LiltPreTrainedModel):
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
-        bbox: Optional[torch.Tensor] = None,
+        polygon: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         token_type_ids: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,
@@ -765,8 +764,8 @@ class LiltModel(LiltPreTrainedModel):
         batch_size, seq_length = input_shape
         device = input_ids.device if input_ids is not None else inputs_embeds.device
 
-        if bbox is None:
-            bbox = torch.zeros(input_shape + (4,), dtype=torch.long, device=device)
+        if polygon is None:
+            polygon = torch.zeros(input_shape + (8,), dtype=torch.long, device=device)
 
         if attention_mask is None:
             attention_mask = torch.ones(((batch_size, seq_length)), device=device)
@@ -797,7 +796,7 @@ class LiltModel(LiltPreTrainedModel):
             inputs_embeds=inputs_embeds,
         )
 
-        layout_embedding_output = self.layout_embeddings(bbox=bbox, position_ids=position_ids)
+        layout_embedding_output = self.layout_embeddings(bbox=polygon, position_ids=position_ids)
 
         encoder_outputs = self.encoder(
             embedding_output,
