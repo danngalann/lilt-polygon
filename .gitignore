@@ -1,3 +1,5 @@
 venv
 .idea
 datasets/
+lilt-polygon/
+.ipynb_checkpoints/
