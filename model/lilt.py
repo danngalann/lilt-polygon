@@ -628,8 +628,8 @@ LILT_INPUTS_DOCSTRING = r"""
 
             [What are input IDs?](../glossary#input-ids)
 
-        bbox (`torch.LongTensor` of shape `({0}, 4)`, *optional*):
-            Bounding boxes of each input sequence tokens. Selected in the range `[0,
+        polygon (`torch.LongTensor` of shape `({0}, 8)`, *optional*):
+            Bounding polygons of each input sequence tokens. Selected in the range `[0,
             config.max_2d_position_embeddings-1]`. Each bounding box should be a normalized version in (x0, y0, x1, y1)
             format, where (x0, y0) corresponds to the position of the upper left corner in the bounding box, and (x1,
             y1) represents the position of the lower right corner. See [Overview](#Overview) for normalization.
@@ -738,9 +738,9 @@ class LiltModel(LiltPreTrainedModel):
         >>> dataset = load_dataset("nielsr/funsd-layoutlmv3", split="train")
         >>> example = dataset[0]
         >>> words = example["tokens"]
-        >>> boxes = example["bboxes"]
+        >>> polygons = example["polygons"]
 
-        >>> encoding = tokenizer(words, boxes=boxes, return_tensors="pt")
+        >>> encoding = tokenizer(words, polygons=polygons, return_tensors="pt")
 
         >>> outputs = model(**encoding)
         >>> last_hidden_states = outputs.last_hidden_state
@@ -796,7 +796,7 @@ class LiltModel(LiltPreTrainedModel):
             inputs_embeds=inputs_embeds,
         )
 
-        layout_embedding_output = self.layout_embeddings(bbox=polygon, position_ids=position_ids)
+        layout_embedding_output = self.layout_embeddings(polygon=polygon, position_ids=position_ids)
 
         encoder_outputs = self.encoder(
             embedding_output,
@@ -846,7 +846,7 @@ class LiltForSequenceClassification(LiltPreTrainedModel):
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
-        bbox: Optional[torch.Tensor] = None,
+        polygon: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.FloatTensor] = None,
         token_type_ids: Optional[torch.LongTensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
@@ -877,9 +877,9 @@ class LiltForSequenceClassification(LiltPreTrainedModel):
         >>> dataset = load_dataset("nielsr/funsd-layoutlmv3", split="train")
         >>> example = dataset[0]
         >>> words = example["tokens"]
-        >>> boxes = example["bboxes"]
+        >>> polygons = example["polygons"]
 
-        >>> encoding = tokenizer(words, boxes=boxes, return_tensors="pt")
+        >>> encoding = tokenizer(words, polygons=polygons, return_tensors="pt")
 
         >>> outputs = model(**encoding)
         >>> predicted_class_idx = outputs.logits.argmax(-1).item()
@@ -889,7 +889,7 @@ class LiltForSequenceClassification(LiltPreTrainedModel):
 
         outputs = self.lilt(
             input_ids,
-            bbox=bbox,
+            polygon=polygon,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
@@ -967,7 +967,7 @@ class LiltForTokenClassification(LiltPreTrainedModel):
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
-        bbox: Optional[torch.LongTensor] = None,
+        polygon: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.FloatTensor] = None,
         token_type_ids: Optional[torch.LongTensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
@@ -996,9 +996,9 @@ class LiltForTokenClassification(LiltPreTrainedModel):
         >>> dataset = load_dataset("nielsr/funsd-layoutlmv3", split="train")
         >>> example = dataset[0]
         >>> words = example["tokens"]
-        >>> boxes = example["bboxes"]
+        >>> polygons = example["polygons"]
 
-        >>> encoding = tokenizer(words, boxes=boxes, return_tensors="pt")
+        >>> encoding = tokenizer(words, polygons=polygons, return_tensors="pt")
 
         >>> outputs = model(**encoding)
         >>> predicted_class_indices = outputs.logits.argmax(-1)
@@ -1007,7 +1007,7 @@ class LiltForTokenClassification(LiltPreTrainedModel):
 
         outputs = self.lilt(
             input_ids,
-            bbox=bbox,
+            polygon=polygon,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
@@ -1089,7 +1089,7 @@ class LiltForQuestionAnswering(LiltPreTrainedModel):
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
-        bbox: Optional[torch.LongTensor] = None,
+        polygon: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.FloatTensor] = None,
         token_type_ids: Optional[torch.LongTensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
@@ -1125,9 +1125,9 @@ class LiltForQuestionAnswering(LiltPreTrainedModel):
         >>> dataset = load_dataset("nielsr/funsd-layoutlmv3", split="train")
         >>> example = dataset[0]
         >>> words = example["tokens"]
-        >>> boxes = example["bboxes"]
+        >>> polygons = example["polygons"]
 
-        >>> encoding = tokenizer(words, boxes=boxes, return_tensors="pt")
+        >>> encoding = tokenizer(words, polygons=polygons, return_tensors="pt")
 
         >>> outputs = model(**encoding)
 
@@ -1141,7 +1141,7 @@ class LiltForQuestionAnswering(LiltPreTrainedModel):
 
         outputs = self.lilt(
             input_ids,
-            bbox=bbox,
+            polygon=polygon,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
