@@ -130,12 +130,9 @@ class LiltTextEmbeddings(nn.Module):
 class LiltLayoutEmbeddings(nn.Module):
     def __init__(self, config):
         super().__init__()
-        # divide by 12 because there are 12 different layout embeddings
+        # divide by 8 because there are 8 different layout embeddings
         # for four-point polygons (8 coordinates: x1,y1,x2,y2,x3,y3,x4,y4)
-        # and additional 4 for height and width (not strictly needed, but can be used)
-        self.position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 12)
-        self.h_position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 12)
-        self.w_position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 12)
+        self.position_embeddings = nn.Embedding(config.max_2d_position_embeddings, config.hidden_size // 8)
 
         self.padding_idx = config.pad_token_id
         self.box_position_embeddings = nn.Embedding(
@@ -157,20 +154,6 @@ class LiltLayoutEmbeddings(nn.Module):
             raise IndexError("The `polygon` coordinate values should be within 0-1000 range.") from e
 
         spatial_position_embeddings = torch.cat(position_embeddings_list, dim=-1)
-
-        # You can still add height and width embeddings if you want
-        # They are not strictly needed for polygon prediction
-        h_position_embeddings = self.h_position_embeddings(polygon[:, :, 7] - polygon[:, :, 1])
-        w_position_embeddings = self.w_position_embeddings(polygon[:, :, 2] - polygon[:, :, 0])
-
-        spatial_position_embeddings = torch.cat(
-            [
-                spatial_position_embeddings,
-                h_position_embeddings,
-                w_position_embeddings,
-            ],
-            dim=-1,
-        )
         spatial_position_embeddings = self.polygon_linear_embeddings(spatial_position_embeddings)
         polygon_position_embeddings = self.box_position_embeddings(position_ids)
 
