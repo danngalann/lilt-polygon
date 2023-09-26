@@ -1241,7 +1241,8 @@ class Tokenizer(LayoutLMv3Tokenizer):
 
         # Padding
         if padding_strategy != PaddingStrategy.DO_NOT_PAD or return_attention_mask:
-            poly = encoded_inputs["polygon"] # Fix for padding setting polygons to zeroes
+            padding_length = max_length - len(encoded_inputs['polygon'])
+            polygons = encoded_inputs['polygon'] + [[0, 0, 0, 0, 0, 0, 0, 0] for _ in range(padding_length)]
             encoded_inputs = self.pad(
                 encoded_inputs,
                 max_length=max_length,
@@ -1249,7 +1250,7 @@ class Tokenizer(LayoutLMv3Tokenizer):
                 pad_to_multiple_of=pad_to_multiple_of,
                 return_attention_mask=return_attention_mask,
             )
-            encoded_inputs["polygon"] = poly
+            encoded_inputs["polygon"] = polygons
 
         if return_length:
             encoded_inputs["length"] = len(encoded_inputs["input_ids"])
