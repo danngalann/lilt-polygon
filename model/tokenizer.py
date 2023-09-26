@@ -1250,6 +1250,7 @@ class Tokenizer(LayoutLMv3Tokenizer):
                 pad_to_multiple_of=pad_to_multiple_of,
                 return_attention_mask=return_attention_mask,
             )
+            del encoded_inputs["polygon"]
             encoded_inputs["polygon"] = polygons
 
         if return_length:
