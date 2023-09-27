@@ -3,3 +3,4 @@ venv
 datasets/
 lilt-polygon/
 .ipynb_checkpoints/
+bin/
