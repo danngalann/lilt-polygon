@@ -55,7 +55,8 @@ def apply_tesseract(
 ):
     """Applies Tesseract OCR on a document image, and returns recognized words + normalized bounding polygons."""
 
-    # TODO Use EAST to get polygons instead of Tesseract
+    # TODO Use DBNet or DBNet++ to get polygons and OCR instead of Tesseract, that only gets bboxes
+    # TODO Right now this function returns polygon coordinates from a bbox, which is not really useful in skewed documents
 
     # apply OCR
     pil_image = to_pil_image(image, input_data_format=input_data_format)
